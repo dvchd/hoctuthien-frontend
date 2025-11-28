@@ -1,24 +1,71 @@
-import React, { useState } from 'react';
-import { User, AvailabilitySlot, AVAILABLE_TOPICS } from '../types';
-import { Filter, Clock, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { User, AvailabilitySlot, AVAILABLE_TOPICS, BookingStatus } from '../types';
+import { api } from '../services/api';
+import { Filter, Clock, X, Loader2 } from 'lucide-react';
 
 interface MentorListPageProps {
-  mentors: User[];
-  slots: AvailabilitySlot[];
-  onBook: (mentor: User, slot: AvailabilitySlot) => void;
+  user: User;
 }
 
-export const MentorListPage: React.FC<MentorListPageProps> = ({ mentors, slots, onBook }) => {
+export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
+  const navigate = useNavigate();
+  const [mentors, setMentors] = useState<User[]>([]);
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [loading, setLoading] = useState(true);
   const [topicFilter, setTopicFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedMentor, setSelectedMentor] = useState<User | null>(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [mentorsData, slotsData] = await Promise.all([
+          api.mentors.list(),
+          api.slots.list()
+        ]);
+        setMentors(mentorsData);
+        setSlots(slotsData);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleBook = async (mentor: User, slot: AvailabilitySlot) => {
+    // Check pending bookings first
+    const myBookings = await api.bookings.list(user.id);
+    const pending = myBookings.filter(b => b.status === BookingStatus.PENDING_PAYMENT);
+    
+    if (pending.length > 0) {
+      alert("Bạn còn buổi học chưa thanh toán. Vui lòng thanh toán trước khi đặt lịch mới.");
+      navigate('/schedule');
+      return;
+    }
+
+    const durationHours = (new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 3600000;
+    const estimatedCost = Math.ceil((mentor.hourlyRate || 0) * durationHours);
+
+    const booking = await api.bookings.create({
+      mentorId: mentor.id,
+      menteeId: user.id,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      cost: estimatedCost
+    });
+
+    // Refresh slots
+    const newSlots = await api.slots.list();
+    setSlots(newSlots);
+
+    navigate(`/pay/${booking.id}`);
+  };
+
   // Filter Logic
   const filteredMentors = mentors.filter(mentor => {
-    // 1. Filter by Topic
     if (topicFilter && !mentor.topics?.includes(topicFilter)) return false;
     
-    // 2. Filter by Date Availability
     if (dateFilter) {
       const hasSlotOnDate = slots.some(slot => 
         slot.mentorId === mentor.id && 
@@ -37,12 +84,13 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ mentors, slots, 
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   };
 
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand-600"/></div>;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Tìm kiếm Mentor</h2>
         
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <div className="relative">
             <select 
@@ -129,7 +177,6 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ mentors, slots, 
         })}
       </div>
 
-      {/* Booking Modal */}
       {selectedMentor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
@@ -147,7 +194,7 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ mentors, slots, 
                       return (
                         <button 
                           key={slot.id}
-                          onClick={() => { onBook(selectedMentor, slot); setSelectedMentor(null); }}
+                          onClick={() => { handleBook(selectedMentor, slot); setSelectedMentor(null); }}
                           className="border border-brand-200 bg-brand-50 p-3 rounded-lg hover:bg-brand-100 hover:border-brand-300 transition-all text-center"
                         >
                            <div className="font-bold text-brand-800 text-sm">

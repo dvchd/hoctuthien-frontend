@@ -1,15 +1,32 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { User, Booking, BookingStatus } from '../types';
-import { Calendar, DollarSign } from 'lucide-react';
+import { api } from '../services/api';
+import { Calendar, DollarSign, Loader2 } from 'lucide-react';
 
 interface DashboardPageProps {
   user: User;
-  bookings: Booking[];
 }
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ user, bookings }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await api.bookings.list(user.id);
+        setBookings(data);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [user.id]);
+
   const upcomingCount = bookings.filter(b => b.status === BookingStatus.CONFIRMED).length;
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand-600"/></div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

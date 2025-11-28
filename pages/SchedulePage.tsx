@@ -1,18 +1,34 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Booking, BookingStatus, UserRole } from '../types';
-import { Calendar, Clock, Video, DollarSign } from 'lucide-react';
+import { api } from '../services/api';
+import { Calendar, Clock, Video, DollarSign, Loader2 } from 'lucide-react';
 
 interface SchedulePageProps {
   user: User;
-  bookings: Booking[];
-  mentors: User[];
 }
 
-export const SchedulePage: React.FC<SchedulePageProps> = ({ user, bookings, mentors }) => {
+export const SchedulePage: React.FC<SchedulePageProps> = ({ user }) => {
   const navigate = useNavigate();
-  const myBookings = bookings.filter(b => b.menteeId === user.id || b.mentorId === user.id)
-    .sort((a,b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()); // Newest first
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [mentors, setMentors] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [bookingsData, mentorsData] = await Promise.all([
+          api.bookings.list(user.id),
+          api.mentors.list()
+        ]);
+        setBookings(bookingsData.sort((a,b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()));
+        setMentors(mentorsData);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [user.id]);
 
   const getStatusColor = (status: BookingStatus) => {
     switch (status) {
@@ -27,18 +43,19 @@ export const SchedulePage: React.FC<SchedulePageProps> = ({ user, bookings, ment
     navigate(`/pay/${bookingId}`);
   };
 
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand-600"/></div>;
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h2 className="text-2xl font-bold mb-6">Lịch học của tôi</h2>
       <div className="space-y-4">
-        {myBookings.length === 0 ? (
+        {bookings.length === 0 ? (
           <div className="p-12 bg-white rounded-xl border border-dashed border-gray-300 text-center text-gray-500">
             Bạn chưa có lịch học nào.
           </div>
         ) : (
-            myBookings.map(booking => {
+            bookings.map(booking => {
               const isMentee = user.role === UserRole.MENTEE;
-              // Simple ID lookup for demo
               const otherPerson = mentors.find(m => m.id === (isMentee ? booking.mentorId : booking.menteeId));
               const otherPersonName = otherPerson ? otherPerson.name : (isMentee ? 'Mentor' : 'Mentee');
 

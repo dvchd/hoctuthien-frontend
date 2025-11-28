@@ -1,13 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, AvailabilitySlot } from '../types';
-import { Plus, Calendar as CalendarIcon, Trash2, Repeat, ChevronLeft, ChevronRight, Check, Clock } from 'lucide-react';
+import { api } from '../services/api';
+import { Plus, Calendar as CalendarIcon, Trash2, Repeat, ChevronLeft, ChevronRight, Check, Clock, Loader2 } from 'lucide-react';
 
 interface MentorSchedulePageProps {
   user: User;
-  slots: AvailabilitySlot[];
-  onAddSlot: (date: Date, duration: number) => void;
-  onAddMultipleSlots: (dates: Date[], duration: number) => void;
-  onDeleteSlot: (id: string) => void;
 }
 
 const DAYS_OF_WEEK = [
@@ -28,23 +25,60 @@ const DURATIONS = [
   { value: 120, label: '120 phút' },
 ];
 
-export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({ 
-  user, slots, onAddSlot, onAddMultipleSlots, onDeleteSlot 
-}) => {
+export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({ user }) => {
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'calendar' | 'recurring'>('calendar');
   
   // --- CALENDAR LOGIC ---
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date>(new Date());
-  
-  // Day detail input
   const [singleTime, setSingleTime] = useState("09:00");
   const [singleDuration, setSingleDuration] = useState(60);
 
-  const mySlots = useMemo(() => 
-    slots.filter(s => s.mentorId === user.id), 
-  [slots, user.id]);
+  // --- RECURRING LOGIC ---
+  const [recurringPattern, setRecurringPattern] = useState<{[key: number]: string[]}>({});
+  const [recurringDuration, setRecurringDuration] = useState(60);
 
+  useEffect(() => {
+    fetchSlots();
+  }, [user.id]);
+
+  const fetchSlots = async () => {
+    try {
+      const data = await api.slots.list(user.id);
+      setSlots(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddSlot = async (date: Date, durationMinutes: number) => {
+    const endTime = new Date(date.getTime() + durationMinutes * 60000);
+    await api.slots.create({
+      mentorId: user.id,
+      startTime: date.toISOString(),
+      endTime: endTime.toISOString()
+    });
+    fetchSlots();
+  };
+
+  const handleDeleteSlot = async (id: string) => {
+    await api.slots.delete(id);
+    setSlots(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleAddMultipleSlots = async (dates: Date[], durationMinutes: number) => {
+    const newSlots = dates.map(date => ({
+      mentorId: user.id,
+      startTime: date.toISOString(),
+      endTime: new Date(date.getTime() + durationMinutes * 60000).toISOString()
+    }));
+    await api.slots.createMultiple(newSlots);
+    fetchSlots();
+  };
+
+  // --- HELPERS ---
   const daysInMonth = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -58,11 +92,10 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
   }, [currentDate]);
 
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-  // Adjust for Monday start (0=Sun -> 7) to make Monday=0 for grid offset
   const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
   const getSlotsForDay = (date: Date) => {
-    return mySlots.filter(s => {
+    return slots.filter(s => {
       const sDate = new Date(s.startTime);
       return sDate.getDate() === date.getDate() && 
              sDate.getMonth() === date.getMonth() && 
@@ -70,44 +103,34 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
     }).sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   };
 
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
+  const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
   const handleAddSingleSlot = () => {
     const [hours, minutes] = singleTime.split(':').map(Number);
     const newDate = new Date(selectedDay);
     newDate.setHours(hours, minutes, 0, 0);
-    onAddSlot(newDate, singleDuration);
+    handleAddSlot(newDate, singleDuration);
   };
 
-  // --- RECURRING LOGIC ---
-  const [recurringPattern, setRecurringPattern] = useState<{[key: number]: string[]}>({});
-  const [recurringDuration, setRecurringDuration] = useState(60);
-  
   const toggleRecurringTime = (dayId: number, time: string) => {
     setRecurringPattern(prev => {
       const current = prev[dayId] || [];
-      if (current.includes(time)) {
-        return { ...prev, [dayId]: current.filter(t => t !== time) };
-      } else {
-        return { ...prev, [dayId]: [...current, time].sort() };
-      }
+      return current.includes(time) 
+        ? { ...prev, [dayId]: current.filter(t => t !== time) }
+        : { ...prev, [dayId]: [...current, time].sort() };
     });
   };
 
   const applyRecurringSchedule = () => {
     const datesToAdd: Date[] = [];
-    const weeksToGenerate = 4; // Generate for next 4 weeks
+    const weeksToGenerate = 4; 
     const today = new Date();
     
     for (let i = 0; i < weeksToGenerate * 7; i++) {
       const futureDate = new Date(today);
       futureDate.setDate(today.getDate() + i);
-      const dayId = futureDate.getDay(); // 0-6
+      const dayId = futureDate.getDay();
       
       const timesForDay = recurringPattern[dayId];
       if (timesForDay && timesForDay.length > 0) {
@@ -116,8 +139,7 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
           const newSlotDate = new Date(futureDate);
           newSlotDate.setHours(h, m, 0, 0);
           
-          // Check if slot already exists to avoid duplicates
-          const exists = mySlots.some(s => new Date(s.startTime).getTime() === newSlotDate.getTime());
+          const exists = slots.some(s => new Date(s.startTime).getTime() === newSlotDate.getTime());
           if (!exists) {
             datesToAdd.push(newSlotDate);
           }
@@ -126,13 +148,15 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
     }
     
     if (datesToAdd.length > 0) {
-      onAddMultipleSlots(datesToAdd, recurringDuration);
+      handleAddMultipleSlots(datesToAdd, recurringDuration);
       alert(`Đã tạo thành công ${datesToAdd.length} buổi học trong 4 tuần tới!`);
       setActiveTab('calendar');
     } else {
-      alert("Không có lịch mới nào được tạo (có thể do trùng lịch hoặc chưa chọn giờ).");
+      alert("Không có lịch mới nào được tạo.");
     }
   };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand-600"/></div>;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -193,14 +217,11 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
                     `}
                   >
                     <span className={`text-sm ${isToday ? 'font-bold' : 'text-gray-700'}`}>{date.getDate()}</span>
-                    
                     <div className="flex gap-1 mt-1">
                       {daySlots.length > 0 && (
                         <div className={`w-1.5 h-1.5 rounded-full ${hasBooked ? 'bg-orange-500' : 'bg-green-500'}`}></div>
                       )}
-                      {daySlots.length > 1 && (
-                         <span className="text-[10px] text-gray-400">+{daySlots.length - 1}</span>
-                      )}
+                      {daySlots.length > 1 && <span className="text-[10px] text-gray-400">+{daySlots.length - 1}</span>}
                     </div>
                   </button>
                 );
@@ -215,7 +236,6 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
             </h3>
             <p className="text-gray-500 text-sm mb-6">Quản lý lịch trong ngày</p>
 
-            {/* Add new time */}
             <div className="flex flex-col gap-3 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
               <div className="flex items-center gap-2">
                  <Clock size={16} className="text-gray-500"/>
@@ -249,16 +269,13 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
               </div>
             </div>
 
-            {/* Slot List */}
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {getSlotsForDay(selectedDay).length === 0 ? (
-                <div className="text-center text-gray-400 text-sm py-4 border border-dashed rounded-lg">
-                  Chưa có lịch
-                </div>
+                <div className="text-center text-gray-400 text-sm py-4 border border-dashed rounded-lg">Chưa có lịch</div>
               ) : (
                 getSlotsForDay(selectedDay).map(slot => {
                   const start = new Date(slot.startTime);
-                  const end = slot.endTime ? new Date(slot.endTime) : new Date(start.getTime() + 60*60000); // fallback
+                  const end = new Date(slot.endTime);
                   return (
                     <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isBooked ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-200'}`}>
                       <div>
@@ -274,11 +291,7 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
                       {slot.isBooked ? (
                         <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded">Đã đặt</span>
                       ) : (
-                        <button 
-                          onClick={() => onDeleteSlot(slot.id)}
-                          className="text-gray-400 hover:text-red-500 p-1"
-                          title="Xoá lịch này"
-                        >
+                        <button onClick={() => handleDeleteSlot(slot.id)} className="text-gray-400 hover:text-red-500 p-1">
                           <Trash2 size={16} />
                         </button>
                       )}
@@ -293,7 +306,9 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
 
       {activeTab === 'recurring' && (
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-          <div className="mb-6 border-b border-gray-100 pb-4">
+           {/* Same recurring UI logic but now calling API wrappers */}
+           {/* (Simplified for brevity, assuming existing recurring UI code is preserved but calls new handlers) */}
+           <div className="mb-6 border-b border-gray-100 pb-4">
              <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
                 <Repeat className="text-brand-600"/> Tạo lịch lặp lại
              </h3>
@@ -302,7 +317,6 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({
              </p>
           </div>
 
-          {/* Duration Setting for Recurring */}
           <div className="mb-6 flex items-center gap-3 bg-blue-50 p-4 rounded-lg">
              <Clock className="text-brand-600" size={20}/>
              <span className="font-medium text-gray-800">Thời lượng cho tất cả các buổi:</span>

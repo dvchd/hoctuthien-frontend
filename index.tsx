@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
+import { initMockServer } from './mock/server';
+
+// Initialize the Mock API Server
+initMockServer();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
