@@ -5,10 +5,15 @@ export enum UserRole {
 }
 
 export enum BookingStatus {
-  PENDING_PAYMENT = 'PENDING_PAYMENT',
-  CONFIRMED = 'CONFIRMED',
-  COMPLETED = 'COMPLETED',
+  PENDING = 'PENDING', // Waiting for mentor approval (optional, not used heavily in this demo)
+  CONFIRMED = 'CONFIRMED', // Scheduled
+  COMPLETED = 'COMPLETED', // Time passed
   CANCELLED = 'CANCELLED'
+}
+
+export enum PaymentStatus {
+  UNPAID = 'UNPAID',
+  PAID = 'PAID'
 }
 
 export interface User {
@@ -23,6 +28,8 @@ export interface User {
   topics?: string[];
   hourlyRate?: number; // Donation amount required
   charityAccountNumber?: string; // The 4-digit account (e.g. 2000)
+  rating?: number; // 0 to 5
+  reviewCount?: number;
 }
 
 export interface AvailabilitySlot {
@@ -40,6 +47,7 @@ export interface Booking {
   startTime: string; // ISO String
   endTime: string; // ISO String
   status: BookingStatus;
+  paymentStatus: PaymentStatus;
   meetLink?: string;
   cost: number;
   paymentCode: string; // The content syntax for transfer

@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Booking, BookingStatus } from '../types';
+import { Booking, PaymentStatus } from '../types';
 import { api } from '../services/api';
 import { PaymentCheck } from '../components/PaymentCheck';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export const PaymentPage: React.FC = () => {
   const { bookingId } = useParams();
@@ -21,7 +22,7 @@ export const PaymentPage: React.FC = () => {
           navigate('/schedule');
           return;
         }
-        if (data.status === BookingStatus.CONFIRMED) {
+        if (data.paymentStatus === PaymentStatus.PAID) {
           alert("Đơn này đã được thanh toán.");
           navigate('/schedule');
           return;
@@ -39,7 +40,7 @@ export const PaymentPage: React.FC = () => {
   const handleSuccess = async () => {
     if (!bookingId) return;
     await api.bookings.pay(bookingId);
-    alert("Thanh toán thành công! Lịch học đã được xác nhận.");
+    alert("Thanh toán thành công! Cảm ơn bạn đã đóng góp.");
     navigate('/schedule');
   };
 
@@ -50,8 +51,22 @@ export const PaymentPage: React.FC = () => {
     <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
       <div className="w-full max-w-md">
         <button onClick={() => navigate('/schedule')} className="mb-4 text-gray-500 hover:text-gray-800 flex items-center gap-1">
-          &larr; Quay lại
+          &larr; Quay lại lịch học
         </button>
+
+        {/* Warning Banner */}
+        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex gap-3 text-sm text-yellow-800 mb-6">
+           <AlertCircle className="shrink-0 mt-0.5" size={18}/>
+           <div>
+             <strong>Lưu ý quan trọng:</strong>
+             <ul className="list-disc ml-4 mt-1 space-y-1">
+               <li>Đây là giao dịch thiện nguyện trực tiếp.</li>
+               <li>Nếu bạn thanh toán trước và buổi học bị huỷ vì lý do bất khả kháng, số tiền <strong>sẽ không thể hoàn lại</strong>.</li>
+               <li>Chúng tôi khuyến khích bạn thanh toán sau khi buổi học kết thúc.</li>
+             </ul>
+           </div>
+        </div>
+
         <PaymentCheck
           accountNumber="2000"
           amount={booking.cost}

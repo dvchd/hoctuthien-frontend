@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, AvailabilitySlot } from '../types';
 import { api } from '../services/api';
@@ -285,7 +286,7 @@ export const MentorSchedulePage: React.FC<MentorSchedulePageProps> = ({ user }) 
                            {end.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
                          </div>
                          <div className="text-xs text-gray-500 mt-1">
-                           {(end.getTime() - start.getTime()) / 60000} phút
+                           {Math.round((end.getTime() - start.getTime()) / 60000)} phút
                          </div>
                       </div>
                       {slot.isBooked ? (

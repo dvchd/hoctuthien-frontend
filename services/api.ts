@@ -49,6 +49,9 @@ export const api = {
       const { data } = await client.post<Booking>('/bookings', bookingData);
       return data;
     },
+    cancel: async (id: string) => {
+      await client.delete(`/bookings/${id}`);
+    },
     pay: async (id: string) => {
       const { data } = await client.post<Booking>(`/bookings/${id}/pay`);
       return data;

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { User, UserRole } from './types';
@@ -25,7 +26,8 @@ export default function App() {
     try {
       const loggedInUser = await api.auth.login(role);
       setUser(loggedInUser);
-      navigate('/activation');
+      // Change: Do not force redirect to activation. Allow exploring dashboard.
+      navigate('/dashboard'); 
     } catch (e) {
       alert("Đăng nhập thất bại");
     }
@@ -37,7 +39,7 @@ export default function App() {
         await api.auth.activate(user.id);
         setUser({ ...user, isActivated: true });
         alert("Tài khoản đã được kích hoạt thành công!");
-        navigate('/dashboard');
+        navigate('/mentors'); // Redirect to find mentor after activation
       } catch (e) {
         alert("Lỗi kích hoạt");
       }
@@ -47,7 +49,7 @@ export default function App() {
   // --- PROTECTED ROUTE WRAPPER ---
   const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     if (!user) return <Navigate to="/login" replace />;
-    if (!user.isActivated) return <Navigate to="/activation" replace />;
+    // Removed strict activation check here. Specific pages will enforce it.
     return children;
   };
 
