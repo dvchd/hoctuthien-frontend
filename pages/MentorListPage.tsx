@@ -203,38 +203,43 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h2 className="text-2xl font-bold text-gray-800">Tìm kiếm Mentor</h2>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
             {/* Topic Filter */}
-            <div className="relative min-w-[200px]">
+            <div className="relative min-w-[200px] w-full sm:w-auto">
               <select 
                 value={topicFilter}
                 onChange={(e) => setTopicFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:border-brand-500 w-full shadow-sm"
+                className="appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg focus:outline-none focus:border-brand-500 w-full shadow-sm"
               >
                 <option value="">Tất cả lĩnh vực</option>
                 {AVAILABLE_TOPICS.map(t => (
-                  <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                  <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
                 <Filter size={16} />
               </div>
             </div>
 
             {/* Quick Availability */}
-            <select
-              value={availabilityFrame}
-              onChange={(e) => setAvailabilityFrame(e.target.value as AvailabilityFrame)}
-              className="appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg shadow-sm focus:outline-none focus:border-brand-500"
-            >
-              <option value="all">Thời gian: Tất cả</option>
-              <option value="today">Rảnh hôm nay</option>
-              <option value="week">Rảnh tuần này</option>
-            </select>
+            <div className="relative w-full sm:w-auto">
+              <select
+                value={availabilityFrame}
+                onChange={(e) => setAvailabilityFrame(e.target.value as AvailabilityFrame)}
+                className="appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg shadow-sm focus:outline-none focus:border-brand-500 w-full"
+              >
+                <option value="all">Thời gian: Tất cả</option>
+                <option value="today">Rảnh hôm nay</option>
+                <option value="week">Rảnh tuần này</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                <ChevronDown size={16} />
+              </div>
+            </div>
 
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all shadow-sm ${showFilters ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              className={`whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all shadow-sm ${showFilters ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
               <SlidersHorizontal size={18} />
               Bộ lọc
