@@ -1,0 +1,5 @@
+{
+  "name": "HocTuThien - Charity Learning Platform",
+  "description": "A platform connecting Mentors and Mentees where all proceeds go directly to charity accounts (Thien Nguyen App). Features automated payment verification via MBBank API, booking management, and Google Meet integration simulation.",
+  "requestFramePermissions": []
+}
