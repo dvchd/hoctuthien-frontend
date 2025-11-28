@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { User, UserRole } from './types';
@@ -15,6 +14,13 @@ import { MentorSchedulePage } from './pages/MentorSchedulePage';
 import { SchedulePage } from './pages/SchedulePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { PaymentPage } from './pages/PaymentPage';
+import { ProfilePage } from './pages/ProfilePage';
+
+// Helper component for protected routes
+const ProtectedRoute = ({ user, children }: { user: User | null, children: React.ReactNode }) => {
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
 
 export default function App() {
   const navigate = useNavigate();
@@ -46,13 +52,6 @@ export default function App() {
     }
   };
 
-  // --- PROTECTED ROUTE WRAPPER ---
-  const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-    if (!user) return <Navigate to="/login" replace />;
-    // Removed strict activation check here. Specific pages will enforce it.
-    return children;
-  };
-
   return (
     <div className="min-h-screen flex flex-col font-sans text-gray-900 bg-slate-50">
       <Navbar 
@@ -77,7 +76,7 @@ export default function App() {
           <Route 
             path="/dashboard" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute user={user}>
                 <DashboardPage user={user!} />
               </ProtectedRoute>
             } 
@@ -86,7 +85,7 @@ export default function App() {
           <Route 
             path="/mentors" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute user={user}>
                 <MentorListPage user={user!} />
               </ProtectedRoute>
             } 
@@ -95,7 +94,7 @@ export default function App() {
           <Route 
             path="/my-schedule" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute user={user}>
                 <MentorSchedulePage user={user!} />
               </ProtectedRoute>
             } 
@@ -104,7 +103,7 @@ export default function App() {
           <Route 
             path="/schedule" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute user={user}>
                 <SchedulePage user={user!} />
               </ProtectedRoute>
             } 
@@ -113,13 +112,14 @@ export default function App() {
           <Route 
             path="/pay/:bookingId" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute user={user}>
                  <PaymentPage />
               </ProtectedRoute>
             } 
           />
 
           <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/profile/:userId" element={<ProfilePage />} />
           
           <Route path="*" element={<div className="text-center py-20">404 - Trang không tồn tại</div>} />
         </Routes>

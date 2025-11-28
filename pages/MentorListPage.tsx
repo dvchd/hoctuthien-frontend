@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { User, AvailabilitySlot, AVAILABLE_TOPICS, PaymentStatus } from '../types';
 import { api } from '../services/api';
 import { Filter, Clock, X, Loader2, Star, SlidersHorizontal, ChevronDown, ChevronUp, Calendar as CalendarIcon, ArrowRight, Lock, AlertCircle } from 'lucide-react';
@@ -153,8 +153,12 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
   });
 
   const getAvailableSlots = (mentorId: string) => {
+    // POLICY: Only show slots starting at least 30 minutes from now
+    // This gives mentors a buffer to prepare and prevents "surprise" bookings
+    const minBookingTime = new Date(Date.now() + 30 * 60000);
+
     return slots
-      .filter(s => s.mentorId === mentorId && !s.isBooked && new Date(s.startTime) > new Date())
+      .filter(s => s.mentorId === mentorId && !s.isBooked && new Date(s.startTime) > minBookingTime)
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   };
 
@@ -205,7 +209,7 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
           
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
             {/* Topic Filter */}
-            <div className="relative min-w-[200px] w-full sm:w-auto">
+            <div className="relative min-w-[200px] w-full sm:w-auto flex items-center">
               <select 
                 value={topicFilter}
                 onChange={(e) => setTopicFilter(e.target.value)}
@@ -217,12 +221,12 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                <Filter size={16} />
+                <ChevronDown size={16} />
               </div>
             </div>
 
             {/* Quick Availability */}
-            <div className="relative w-full sm:w-auto">
+            <div className="relative min-w-[180px] w-full sm:w-auto flex items-center">
               <select
                 value={availabilityFrame}
                 onChange={(e) => setAvailabilityFrame(e.target.value as AvailabilityFrame)}
@@ -329,9 +333,13 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
               <div className="p-6 flex-grow">
                 <div className="flex items-start justify-between mb-4">
                    <div className="flex items-center gap-4">
-                    <img src={mentor.avatarUrl} alt={mentor.name} className="w-16 h-16 rounded-full object-cover border-2 border-brand-50" />
+                    <Link to={`/profile/${mentor.id}`}>
+                      <img src={mentor.avatarUrl} alt={mentor.name} className="w-16 h-16 rounded-full object-cover border-2 border-brand-50 hover:border-brand-200 transition-colors" />
+                    </Link>
                     <div>
-                      <h3 className="font-bold text-lg text-gray-900 group-hover:text-brand-600 transition-colors">{mentor.name}</h3>
+                      <Link to={`/profile/${mentor.id}`}>
+                        <h3 className="font-bold text-lg text-gray-900 hover:text-brand-600 transition-colors">{mentor.name}</h3>
+                      </Link>
                       <div className="flex items-center gap-1 text-sm text-yellow-500 font-bold">
                         <Star size={14} fill="currentColor" />
                         <span>{mentor.rating?.toFixed(1) || 'New'}</span>
@@ -427,7 +435,8 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
                  {getAvailableSlots(selectedMentor.id).length === 0 ? (
                     <div className="text-center py-10">
                       <CalendarIcon size={48} className="mx-auto text-gray-300 mb-2"/>
-                      <p className="text-gray-500">Mentor này hiện chưa có lịch trống nào.</p>
+                      <p className="text-gray-500">Mentor này hiện chưa có lịch trống phù hợp.</p>
+                      <p className="text-xs text-gray-400 mt-1">(Lưu ý: Chỉ hiển thị các khung giờ bắt đầu sau ít nhất 30 phút)</p>
                       <button onClick={() => setSelectedMentor(null)} className="mt-4 text-brand-600 hover:underline">
                         Quay lại tìm kiếm
                       </button>

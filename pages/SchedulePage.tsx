@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Booking, BookingStatus, UserRole, PaymentStatus } from '../types';
 import { api } from '../services/api';
-import { Calendar, Clock, Video, DollarSign, Loader2, AlertTriangle, CheckCircle, Hourglass, XCircle, X } from 'lucide-react';
+import { Calendar, Clock, Video, DollarSign, Loader2, AlertTriangle, CheckCircle, Hourglass, XCircle, X, Ban } from 'lucide-react';
 
 interface SchedulePageProps {
   user: User;
@@ -81,8 +81,13 @@ export const SchedulePage: React.FC<SchedulePageProps> = ({ user }) => {
               const isPaid = booking.paymentStatus === PaymentStatus.PAID;
               const isDebt = isFinished && !isPaid;
               
-              // Logic to allow cancellation: Must be NOT PAID and NOT STARTED yet (with a small buffer if needed, but for now simple)
-              const canCancel = !isPaid && !isStarted && isMentee;
+              // CANCELLATION RULES:
+              // 1. Must be Mentee
+              // 2. Must NOT be paid
+              // 3. Must start in MORE than 60 minutes from now
+              const minutesUntilStart = (start.getTime() - now.getTime()) / 60000;
+              const isTooLateToCancel = minutesUntilStart <= 60 && !isStarted;
+              const canCancel = !isPaid && !isStarted && isMentee && !isTooLateToCancel;
 
               return (
                 <div key={booking.id} className={`bg-white rounded-xl border p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md transition-shadow ${isDebt ? 'border-orange-200 ring-1 ring-orange-200' : 'border-gray-200'}`}>
@@ -143,13 +148,20 @@ export const SchedulePage: React.FC<SchedulePageProps> = ({ user }) => {
                       </button>
                     )}
 
-                    {canCancel && (
+                    {canCancel ? (
                       <button 
                         onClick={() => setCancelBookingId(booking.id)}
                         className="w-full flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <XCircle size={16}/> Hủy lịch
                       </button>
+                    ) : (
+                      !isFinished && !isStarted && isMentee && (
+                        <div className="w-full text-center text-xs text-gray-400 bg-gray-50 p-2 rounded flex items-center justify-center gap-1 cursor-not-allowed" title="Chỉ có thể hủy trước giờ học 60 phút">
+                           <Ban size={14}/> 
+                           {isTooLateToCancel ? "Không thể hủy (Sắp diễn ra)" : "Không thể hủy"}
+                        </div>
+                      )
                     )}
                     
                     {isPaid && (

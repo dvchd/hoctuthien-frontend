@@ -1,61 +1,6 @@
-
 import client from '../lib/axios';
-import { User, UserRole, Booking, BookingStatus, PaymentStatus, AvailabilitySlot } from '../types';
-
-// --- MOCK DATABASE ---
-const db = {
-  users: [
-    { 
-      id: 'm1', 
-      name: 'Nguyễn Văn A', 
-      email: 'a@test.com', 
-      role: UserRole.MENTOR, 
-      isActivated: true, 
-      avatarUrl: 'https://picsum.photos/100/100', 
-      topics: ['1', '3', '5'], 
-      hourlyRate: 100000, 
-      bio: '5 năm kinh nghiệm Fullstack Developer. Từng làm việc tại Google, Facebook.', 
-      charityAccountNumber: '2000',
-      rating: 4.8,
-      reviewCount: 120
-    },
-    { 
-      id: 'm2', 
-      name: 'Trần Thị B', 
-      email: 'b@test.com', 
-      role: UserRole.MENTOR, 
-      isActivated: true, 
-      avatarUrl: 'https://picsum.photos/101/101', 
-      topics: ['2', '4', '6'], 
-      hourlyRate: 50000, 
-      bio: 'Marketing Manager tại công ty đa quốc gia. IELTS 8.0.', 
-      charityAccountNumber: '1111',
-      rating: 4.5,
-      reviewCount: 45
-    },
-    { 
-      id: 'm3', 
-      name: 'Lê C', 
-      email: 'c@test.com', 
-      role: UserRole.MENTOR, 
-      isActivated: true, 
-      avatarUrl: 'https://picsum.photos/102/102', 
-      topics: ['1', '6'], 
-      hourlyRate: 200000, 
-      bio: 'Chuyên gia AI/ML. Tiến sĩ Đại học Stanford.', 
-      charityAccountNumber: '2000',
-      rating: 5.0,
-      reviewCount: 12
-    },
-  ] as User[],
-  slots: [
-    { id: 's1', mentorId: 'm1', startTime: new Date(Date.now() + 86400000).toISOString(), endTime: new Date(Date.now() + 86400000 + 3600000).toISOString(), isBooked: false },
-    { id: 's2', mentorId: 'm1', startTime: new Date(Date.now() + 172800000).toISOString(), endTime: new Date(Date.now() + 172800000 + 5400000).toISOString(), isBooked: false },
-  ] as AvailabilitySlot[],
-  bookings: [] as Booking[]
-};
-
-const generateId = () => Math.random().toString(36).substr(2, 9).toUpperCase();
+import { User, UserRole, Booking, BookingStatus, PaymentStatus } from '../types';
+import { db, generateId } from './db';
 
 // --- INITIALIZE INTERCEPTORS ---
 export const initMockServer = () => {
@@ -70,7 +15,6 @@ export const initMockServer = () => {
       const body = bodyStr ? JSON.parse(bodyStr) : {};
       
       // Normalize URL: Remove /api prefix, remove Query Params, and ensure leading slash
-      // Example: "/api/bookings/123?foo=bar" -> "/bookings/123"
       let route = url.replace(/^\/?api/, '');
       const queryIndex = route.indexOf('?');
       if (queryIndex !== -1) {
@@ -88,7 +32,7 @@ export const initMockServer = () => {
           email: 'demo@hoctuthien.com',
           role: body.role,
           isActivated: false,
-          avatarUrl: `https://picsum.photos/200/200?random=${Math.random()}`,
+          avatarUrl: `https://picsum.photos/seed/${Math.random()}/200`,
           topics: body.role === UserRole.MENTOR ? ['1', '2'] : [],
           hourlyRate: 50000,
           charityAccountNumber: '2000',
@@ -104,6 +48,43 @@ export const initMockServer = () => {
         if (user) user.isActivated = true;
         return Promise.resolve({ data: user, status: 200, statusText: 'OK', headers: {}, config: error.config });
       }
+
+      // --- USERS (PROFILE) ---
+      const userMatch = route.match(/^\/users\/([^\/]+)$/);
+      if (userMatch && method === 'get') {
+        const userId = userMatch[1];
+        const user = db.users.find(u => u.id === userId);
+        
+        if (user) {
+          // Calculate Real Stats
+          const userBookings = db.bookings.filter(b => b.mentorId === userId || b.menteeId === userId);
+          const totalPaid = userBookings
+            .filter(b => b.paymentStatus === PaymentStatus.PAID)
+            .reduce((sum, b) => sum + b.cost, 0);
+          
+          const sessionCount = userBookings.filter(b => b.status === BookingStatus.CONFIRMED).length;
+
+          // Mask sensitive info
+          const safeUser = { ...user, email: '***@***.com' };
+
+          return Promise.resolve({ 
+            data: { 
+              ...safeUser, 
+              stats: {
+                totalDonated: totalPaid,
+                totalSessions: sessionCount,
+                joinDate: '01/10/2025' // Mock join date
+              }
+            }, 
+            status: 200, 
+            statusText: 'OK', 
+            headers: {}, 
+            config: error.config 
+          });
+        }
+        return Promise.reject({ response: { status: 404 } });
+      }
+
 
       // --- MENTORS ---
       if (route === '/mentors' && method === 'get') {

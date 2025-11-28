@@ -12,6 +12,12 @@ export const api = {
       return data;
     }
   },
+  users: {
+    get: async (id: string) => {
+      const { data } = await client.get<User & { stats: any }>(`/users/${id}`);
+      return data;
+    }
+  },
   mentors: {
     list: async () => {
       const { data } = await client.get<User[]>('/mentors');
