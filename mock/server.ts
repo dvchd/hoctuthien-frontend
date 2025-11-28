@@ -1,6 +1,8 @@
+
 import client from '../lib/axios';
 import { User, UserRole, Booking, BookingStatus, PaymentStatus } from '../types';
-import { db, generateId } from './db';
+import { db } from './db';
+import { generateId } from './utils';
 
 // --- INITIALIZE INTERCEPTORS ---
 export const initMockServer = () => {
@@ -47,6 +49,58 @@ export const initMockServer = () => {
         const user = db.users.find(u => u.id === body.userId);
         if (user) user.isActivated = true;
         return Promise.resolve({ data: user, status: 200, statusText: 'OK', headers: {}, config: error.config });
+      }
+
+      // --- LEADERBOARD (Dynamic) ---
+      if (route === '/leaderboard' && method === 'get') {
+        const { role, period, metric } = params;
+        
+        // Filter users by role
+        const candidates = db.users.filter(u => u.role === role);
+        
+        // Calculate scores based on Mock DB Bookings
+        const leaderboardData = candidates.map(user => {
+          let value = 0;
+          const userBookings = db.bookings.filter(b => 
+            (role === UserRole.MENTOR ? b.mentorId : b.menteeId) === user.id
+            && b.status === BookingStatus.CONFIRMED
+            && b.paymentStatus === PaymentStatus.PAID
+          );
+
+          if (metric === 'donation') {
+             value = userBookings.reduce((sum, b) => sum + b.cost, 0);
+          } else {
+             value = userBookings.length;
+          }
+          
+          // Apply randomized "Period" factor just for visual variety in demo
+          // (In real app, we would filter bookings by date)
+          const factor = period === 'day' ? 0.05 : period === 'week' ? 0.2 : 1;
+          value = Math.floor(value * factor);
+
+          return {
+            user,
+            value
+          };
+        });
+
+        // Sort and Rank
+        const sorted = leaderboardData
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10)
+          .map((item, index) => ({
+            rank: index + 1,
+            user: {
+              id: item.user.id,
+              name: item.user.name,
+              avatarUrl: item.user.avatarUrl,
+              role: item.user.role
+            },
+            value: item.value,
+            change: 0
+          }));
+
+        return Promise.resolve({ data: sorted, status: 200, statusText: 'OK', headers: {}, config: error.config });
       }
 
       // --- USERS (PROFILE) ---

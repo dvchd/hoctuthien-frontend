@@ -1,5 +1,5 @@
 import client from '../lib/axios';
-import { User, UserRole, Booking, AvailabilitySlot } from '../types';
+import { User, UserRole, Booking, AvailabilitySlot, LeaderboardEntry } from '../types';
 
 export const api = {
   auth: {
@@ -60,6 +60,14 @@ export const api = {
     },
     pay: async (id: string) => {
       const { data } = await client.post<Booking>(`/bookings/${id}/pay`);
+      return data;
+    }
+  },
+  leaderboard: {
+    get: async (role: UserRole, period: string, metric: string) => {
+      const { data } = await client.get<LeaderboardEntry[]>('/leaderboard', { 
+        params: { role, period, metric } 
+      });
       return data;
     }
   }
