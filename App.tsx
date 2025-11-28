@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { User, UserRole } from './types';
 import { Navbar } from './components/Navbar';
 import { api } from './services/api';
@@ -24,6 +24,7 @@ const ProtectedRoute = ({ user, children }: { user: User | null, children: React
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
 
   // --- ACTIONS ---
@@ -45,7 +46,16 @@ export default function App() {
         await api.auth.activate(user.id);
         setUser({ ...user, isActivated: true });
         alert("Tài khoản đã được kích hoạt thành công!");
-        navigate('/mentors'); // Redirect to find mentor after activation
+        
+        // Check if there is a return state (e.g. user was trying to book a mentor)
+        const state = location.state as { returnUrl?: string; mentorId?: string };
+        
+        if (state?.returnUrl && state?.mentorId) {
+          // Navigate back to mentors list and pass the mentorId to auto-open
+          navigate(state.returnUrl, { state: { openMentorId: state.mentorId } });
+        } else {
+          navigate('/mentors');
+        }
       } catch (e) {
         alert("Lỗi kích hoạt");
       }

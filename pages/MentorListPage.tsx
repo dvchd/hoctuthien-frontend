@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { User, AvailabilitySlot, AVAILABLE_TOPICS, PaymentStatus } from '../types';
 import { api } from '../services/api';
 import { Filter, Clock, X, Loader2, Star, SlidersHorizontal, ChevronDown, ChevronUp, Calendar as CalendarIcon, ArrowRight, Lock, AlertCircle } from 'lucide-react';
@@ -13,6 +13,7 @@ type AvailabilityFrame = 'all' | 'today' | 'week';
 
 export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mentors, setMentors] = useState<User[]>([]);
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,11 +48,33 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
     fetchData();
   }, []);
 
+  // Effect to handle auto-opening mentor modal if returned from activation
+  useEffect(() => {
+    if (!loading && mentors.length > 0) {
+       const state = location.state as { openMentorId?: string };
+       if (state?.openMentorId) {
+         const mentorToOpen = mentors.find(m => m.id === state.openMentorId);
+         if (mentorToOpen) {
+           setSelectedMentor(mentorToOpen);
+           // Clear state history to prevent reopening on simple refresh? 
+           // React router history state is persistent, but acceptable for this UX flow.
+           window.history.replaceState({}, document.title);
+         }
+       }
+    }
+  }, [loading, mentors, location.state]);
+
   const initiateBooking = async (mentor: User, slot: AvailabilitySlot) => {
     // 1. Activation Check
     if (!user.isActivated) {
       alert("Bạn cần kích hoạt tài khoản (ủng hộ 10.000đ) để có thể đặt lịch.");
-      navigate('/activation');
+      // Pass state to activation page so we can return here
+      navigate('/activation', { 
+        state: { 
+          returnUrl: '/mentors', 
+          mentorId: mentor.id 
+        } 
+      });
       return;
     }
 
@@ -327,6 +350,11 @@ export const MentorListPage: React.FC<MentorListPageProps> = ({ user }) => {
           const mentorSlots = getAvailableSlots(mentor.id);
           const slotsCount = mentorSlots.length;
           const nextSlots = mentorSlots.slice(0, 3);
+          const roundDuration = (start: string, end?: string) => {
+            const s = new Date(start);
+            const e = end ? new Date(end) : new Date(s.getTime() + 60*60000);
+            return Math.round((e.getTime() - s.getTime()) / 60000);
+          }
 
           return (
             <div key={mentor.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full group">
